@@ -1,0 +1,63 @@
+"""NET-H01 through NET-H05. Health checks are GET only."""
+
+import pytest
+
+from network_checks.http_client import http_get
+from network_checks.load_config import health_url
+from network_checks.tls_check import tls_handshake
+
+pytestmark = [pytest.mark.http]
+
+ACCEPTED_TLS = {"TLSv1.2", "TLSv1.3"}
+
+
+@pytest.mark.smoke
+@pytest.mark.net_h01
+def test_NET_H01_health_get(profile, case) -> None:
+    result = http_get(health_url(profile), timeout=profile["timeoutSec"])
+    case.actual = f"status={result.status}; url={result.url}"
+    assert result.status in profile["http"]["expectedStatus"]
+    assert result.url.startswith("https://")
+
+
+@pytest.mark.smoke
+@pytest.mark.net_h02
+def test_NET_H02_tls_handshake(profile, case) -> None:
+    tls = profile["tls"]
+    handshake = tls_handshake(tls["host"], tls["port"], profile["timeoutSec"])
+    case.actual = f"protocol={handshake.protocol}; cipher={handshake.cipher}"
+    assert handshake.protocol in ACCEPTED_TLS
+    assert handshake.cipher
+
+
+@pytest.mark.smoke
+@pytest.mark.net_h03
+def test_NET_H03_redirect_completes(profile, case) -> None:
+    url = profile["http"].get("redirectUrl")
+    assert url, "Set http.redirectUrl to the plaintext URL that must end on HTTPS"
+    result = http_get(url, timeout=profile["timeoutSec"], follow_redirects=True)
+    case.actual = f"status={result.status}; url={result.url}"
+    assert result.url.startswith("https://")
+    assert result.status < 400
+
+
+@pytest.mark.smoke
+@pytest.mark.net_h04
+def test_NET_H04_response_headers(profile, case) -> None:
+    result = http_get(health_url(profile), timeout=profile["timeoutSec"])
+    missing = [name for name in profile["http"]["expectedHeaders"] if name not in result.headers]
+    present = [name for name in profile["http"]["expectedHeaders"] if name in result.headers]
+    case.actual = f"present={present}; missing={missing or '-'}"
+    assert not missing, f"missing headers: {missing}"
+
+
+@pytest.mark.smoke
+@pytest.mark.net_h05
+def test_NET_H05_client_error_status(profile, case) -> None:
+    base = str(profile["http"]["baseUrl"]).rstrip("/")
+    path = str(profile["http"]["notFoundPath"])
+    if not path.startswith("/"):
+        path = "/" + path
+    result = http_get(base + path, timeout=profile["timeoutSec"])
+    case.actual = f"status={result.status}; url={result.url}"
+    assert 400 <= result.status <= 499
