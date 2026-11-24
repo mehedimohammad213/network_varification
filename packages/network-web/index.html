@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Network Verification</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css?v=3" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <p class="brand">Network Verification</p>
+        <h1>Check if the site is reachable and healthy</h1>
+        <p class="lede">
+          Paste a site link or pick a saved profile, run the check, and review Expected vs Actual.
+          No Python install needed on this computer.
+        </p>
+      </header>
+
+      <form id="runForm" class="controls" aria-label="Run controls">
+        <label class="field field-url">
+          <span>Site link</span>
+          <input
+            id="targetUrl"
+            type="text"
+            inputmode="url"
+            placeholder="Paste https://your-site.com/ — this overrides the profile below"
+            autocomplete="url"
+            spellcheck="false"
+          />
+        </label>
+        <label class="field">
+          <span>Profile (only if link is empty)</span>
+          <select id="profile"></select>
+        </label>
+        <label class="field">
+          <span>Suite</span>
+          <select id="suite">
+            <option value="smoke" selected>Smoke (quick)</option>
+            <option value="full">Full suite</option>
+          </select>
+        </label>
+        <button type="submit" id="runBtn" class="run">Run check</button>
+      </form>
+
+      <p id="meta" class="meta" hidden></p>
+
+      <section id="summary" class="summary" hidden aria-live="polite">
+        <p id="summaryStatus" class="summary-status"></p>
+        <p id="summaryCounts" class="summary-counts"></p>
+        <a id="reportLink" class="report-link" href="#" target="_blank" rel="noopener" hidden>
+          Open full report
+        </a>
+      </section>
+
+      <p id="statusLine" class="status-line" hidden></p>
+      <p id="errorBox" class="error" hidden></p>
+
+      <section class="results" aria-label="Results">
+        <table>
+          <thead>
+            <tr>
+              <th>Result</th>
+              <th>Test</th>
+              <th>Expected</th>
+              <th>Actual</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr class="empty">
+              <td colspan="5">Results will appear here after you run a check.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+    <script src="/static/app.js?v=3"></script>
+  </body>
+</html>

@@ -42,7 +42,21 @@ NETWORK_PROFILE=cms
 
 If `targets.yaml` is missing, the loader uses the example and the report marks the run as DEV-LAB.
 
-## Smoke and full
+## Browser UI (for non-tech clients)
+
+Python stays on the machine that hosts the app. Clients only open a browser.
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app:app --app-dir packages/network-api --host 0.0.0.0 --port 8000
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Paste a site link **or** pick a profile, click **Run check**, and read Expected vs Actual. The same run still writes `reports/smoke.html` (or `full.html`).
+
+API cheat sheet: `GET /api/profiles`, `POST /api/runs`, `GET /api/runs/{id}`, `GET /docs`.
+
+## Smoke and full (CLI)
 
 Run from the repository root (`.env` supplies the profile if you do not export it):
 
@@ -72,6 +86,7 @@ Profiles that share the example file hit the same public lab, so any of `ecommer
 | `reports/smoke.html` or `reports/full.html` | pytest-html, self-contained |
 | `reports/junit.xml` | JUnit, when you pass `--junitxml` |
 | `reports/evidence.txt` | Profile, targets path, example-file flag, UTC time, hostname, exit status |
+| `reports/ui_results.json` | JSON for the browser UI (Expected / Actual rows) |
 
 The HTML environment table repeats the profile and the targets file. The Results table includes **Expected** and **Actual** columns for each case. A row that says example targets are in use is not a staging result. `reports/` is gitignored except for `.gitkeep`.
 
@@ -151,12 +166,19 @@ The job fails when smoke fails. HTML and JUnit are uploaded as artifacts. Point 
 
 ## Layout
 
+Monorepo with three packages (shared `config/`, `docs/`, `reports/` at the root):
+
 ```
-config/targets.example.yaml
-src/network_checks/    load_config, tcp, dns, http_client, tls_check, latency
-tests/                 one module per area, NET-* ids in the test names
+packages/network-checks/   probe library + pytest suite (NET-* cases)
+  src/network_checks/
+  tests/
+  pytest.ini
+packages/network-api/      FastAPI runner for the browser UI
+packages/network-web/      HTML / CSS / JS client page
+config/                    targets.example.yaml (+ local targets.yaml)
 docs/
-reports/               created at run time
+reports/                   created at run time
+pytest.ini                 root convenience config (points at network-checks)
 ```
 
 ## Out of scope

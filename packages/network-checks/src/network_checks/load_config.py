@@ -53,7 +53,13 @@ class ConfigError(Exception):
 
 
 def project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    """Monorepo root (contains config/, packages/, reports/)."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "config").is_dir() and (parent / "packages").is_dir():
+            return parent
+    # Fallback: packages/network-checks/src/network_checks -> repo root
+    return here.parents[4]
 
 
 def load_runner_env(env_file: str | Path | None = None, *, force: bool = False) -> Path | None:
@@ -83,6 +89,26 @@ def resolve_targets_path(explicit: str | None = None) -> Path:
     if local.is_file():
         return local
     return root / "config" / "targets.example.yaml"
+
+
+def list_profiles(targets_file: str | None = None) -> list[dict[str, Any]]:
+    """Return profile names and short descriptions for the UI."""
+    load_runner_env()
+    path = resolve_targets_path(targets_file)
+    if not path.is_file():
+        raise ConfigError(f"Targets file not found: {path}.")
+    document = _read_yaml(path)
+    profiles = []
+    for name, block in document.items():
+        if name in RESERVED_KEYS or not isinstance(block, dict):
+            continue
+        profiles.append(
+            {
+                "name": name,
+                "description": str(block.get("description") or name),
+            }
+        )
+    return profiles
 
 
 def load_profile(profile: str | None = None, targets_file: str | None = None) -> dict[str, Any]:

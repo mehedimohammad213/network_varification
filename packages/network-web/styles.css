@@ -1,0 +1,274 @@
+:root {
+  --ink: #14212b;
+  --muted: #5a6b78;
+  --line: #d7e0e8;
+  --paper: #f3f7fa;
+  --card: #ffffff;
+  --accent: #0f6e56;
+  --accent-ink: #083d30;
+  --fail: #9b1c1c;
+  --fail-bg: #fde8e8;
+  --pass: #0f6e56;
+  --pass-bg: #e3f5ef;
+  --warn: #8a5b00;
+  --warn-bg: #fff4d6;
+  --shadow: 0 18px 40px rgba(20, 33, 43, 0.08);
+  --font: "DM Sans", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 0%, #d9ece6 0%, transparent 42%),
+    radial-gradient(circle at 88% 8%, #d7e6f4 0%, transparent 36%),
+    linear-gradient(180deg, #eef4f8 0%, var(--paper) 45%, #e8eef3 100%);
+}
+
+.page {
+  width: min(1100px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2.5rem 0 4rem;
+}
+
+.hero {
+  margin-bottom: 1.75rem;
+}
+
+.brand {
+  margin: 0 0 0.85rem;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--accent-ink);
+  line-height: 1.05;
+}
+
+.hero h1 {
+  margin: 0 0 0.65rem;
+  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin: 0;
+  max-width: 40rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr auto;
+  gap: 0.85rem;
+  align-items: end;
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.field-url {
+  grid-column: 1 / -1;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+select,
+input[type="text"] {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  background: #f8fbfd;
+  color: var(--ink);
+  font: inherit;
+}
+
+input[type="text"]::placeholder {
+  color: #8a9aa8;
+}
+
+select:disabled {
+  opacity: 0.55;
+}
+
+.run {
+  height: 2.75rem;
+  padding: 0 1.4rem;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.run:hover:not(:disabled) {
+  background: var(--accent-ink);
+}
+
+.run:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.meta,
+.status-line {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.summary {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  background: var(--card);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.summary-status {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.summary-status.ok {
+  color: var(--pass);
+}
+
+.summary-status.bad {
+  color: var(--fail);
+}
+
+.summary-status.busy {
+  color: var(--warn);
+}
+
+.summary-counts {
+  margin: 0;
+  color: var(--muted);
+}
+
+.report-link {
+  color: var(--accent-ink);
+  font-weight: 600;
+  width: fit-content;
+}
+
+.error {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  background: var(--fail-bg);
+  color: var(--fail);
+  border: 1px solid #f2c0c0;
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.results {
+  margin-top: 1.25rem;
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+th,
+td {
+  padding: 0.85rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: #f7fafc;
+}
+
+td {
+  font-size: 0.95rem;
+}
+
+td.mono {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.empty td {
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pill.passed {
+  background: var(--pass-bg);
+  color: var(--pass);
+}
+
+.pill.failed,
+.pill.error {
+  background: var(--fail-bg);
+  color: var(--fail);
+}
+
+.pill.skipped {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+@media (max-width: 760px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .run {
+    width: 100%;
+  }
+}

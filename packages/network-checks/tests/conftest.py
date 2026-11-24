@@ -6,6 +6,7 @@ Results rows include Expected and Actual columns for each case.
 
 from __future__ import annotations
 
+import json
 import platform
 import re
 import socket
@@ -17,6 +18,31 @@ from pathlib import Path
 import pytest
 
 from network_checks.load_config import health_url, load_profile, project_root
+
+# Friendly labels for the browser UI (and JSON export).
+TEST_TITLES: dict[str, str] = {
+    "NET_C01": "TCP reachability",
+    "NET_C02": "Critical port open",
+    "NET_C03": "Unreachable host times out",
+    "NET_C04": "Wrong port is closed",
+    "NET_D01": "Resolve primary host",
+    "NET_D02": "NXDOMAIN for bad name",
+    "NET_D03": "Multiple DNS addresses",
+    "NET_D04": "Bad resolver times out",
+    "NET_H01": "Health check (HTTPS GET)",
+    "NET_H02": "TLS handshake",
+    "NET_H03": "HTTP redirects to HTTPS",
+    "NET_H04": "Expected response headers",
+    "NET_H05": "Unknown path returns 4xx",
+    "NET_P01": "Latency within SLA",
+    "NET_P02": "Soft timeout on blackhole",
+    "NET_P03": "Retry budget is limited",
+    "NET_N01": "HTTP upgrades to HTTPS",
+    "NET_N02": "Bad certificate fails closed",
+    "NET_N03": "Slow response times out",
+    "NET_N04": "SNI mismatch fails closed",
+    "overlay_endpoints_reachable": "Overlay endpoints reachable",
+}
 
 # Catalog expected outcomes for the HTML Expected column.
 TEST_EXPECTED: dict[str, str] = {
@@ -53,6 +79,7 @@ TEST_EXPECTED: dict[str, str] = {
 
 _CASE_ID = re.compile(r"test_(NET_[A-Z]\d{2})")
 _case_key = pytest.StashKey["CaseResult"]()
+_ui_rows_key = pytest.StashKey[list]()
 
 
 @dataclass
@@ -71,6 +98,15 @@ def case_key_for(item: pytest.Item) -> str:
 
 def default_expected(item: pytest.Item) -> str:
     return TEST_EXPECTED.get(case_key_for(item), "")
+
+
+def title_for(item: pytest.Item) -> str:
+    key = case_key_for(item)
+    base = TEST_TITLES.get(key, key.replace("_", " "))
+    if "[" in item.name and item.name.endswith("]"):
+        param = item.name[item.name.index("[") + 1 : -1]
+        return f"{base} ({param})"
+    return base
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
@@ -108,6 +144,24 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]):
             actual = "matched expected"
     report.expected = expected  # type: ignore[attr-defined]
     report.actual = actual  # type: ignore[attr-defined]
+
+    if report.when == "call" or (
+        report.when in {"setup", "teardown"} and report.outcome != "passed"
+    ):
+        if _ui_rows_key not in item.config.stash:
+            item.config.stash[_ui_rows_key] = []
+        rows = item.config.stash[_ui_rows_key]
+        rows.append(
+            {
+                "id": case_key_for(item),
+                "title": title_for(item),
+                "nodeid": report.nodeid,
+                "result": report.outcome,
+                "expected": expected,
+                "actual": actual,
+                "duration_sec": round(getattr(report, "duration", 0.0) or 0.0, 3),
+            }
+        )
 
 
 def _failure_summary(report) -> str:
@@ -186,3 +240,18 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     with Path(path).open("a", encoding="utf-8") as handle:
         handle.write(f"exit_status={exitstatus}\n")
         handle.write(f"collected={session.testscollected}\n")
+
+    rows = session.config.stash.get(_ui_rows_key, [])
+    passed = sum(1 for row in rows if row["result"] == "passed")
+    failed = sum(1 for row in rows if row["result"] == "failed")
+    skipped = sum(1 for row in rows if row["result"] == "skipped")
+    payload = {
+        "exit_status": exitstatus,
+        "collected": session.testscollected,
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "tests": rows,
+    }
+    ui_path = project_root() / "reports" / "ui_results.json"
+    ui_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
