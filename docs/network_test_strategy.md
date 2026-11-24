@@ -42,7 +42,7 @@ Out of scope for v1:
 
 ## 4. Environments
 
-The same tests run everywhere. `NETWORK_PROFILE` and the targets file select the product. Hosts and URLs live in `config/targets.yaml` (gitignored). Set `NETWORK_PROFILE` and optional `TARGETS_FILE` in the shell or CI; defaults are `cms` and `config/targets.yaml`. The committed `config/targets.example.yaml` is a public lab (example.com and other lab hosts) so a new runner can prove the suite before any real URL is introduced.
+The same tests run everywhere. Set `TARGET_URL` (CLI/CI) or paste a site link (UI) — one dynamic profile is built for that host. Optional fallback: a single `site` block in `config/targets.yaml` (gitignored) when `TARGET_URL` is unset. The committed `config/targets.example.yaml` is a public lab so a new runner can prove the suite before any real URL is introduced.
 
 | Environment | Runner | Targets | Suite |
 |-------------|--------|---------|-------|
@@ -69,8 +69,8 @@ A report generated from `targets.example.yaml` is DEV-LAB evidence. `reports/evi
 
 1. Python 3.11 or newer is installed. 3.12 is the CI runtime.
 2. `.venv` exists and `requirements.txt` is installed.
-3. `NETWORK_PROFILE` is `ecommerce`, `erp`, `cms`, or `fintech`.
-4. The profile lists the hosts this run is allowed to probe. Real URLs live only in `config/targets.yaml`.
+3. `TARGET_URL` is set to the site under test, or a `site` block exists in the targets YAML.
+4. The run only probes hosts derived from that URL (or the YAML `site` block).
 5. The runner can resolve DNS and open TCP to those hosts. Private targets: VPN is up before pytest.
 6. `reports/` is writable.
 7. Staging and production runs start only after smoke is green on DEV-LAB.

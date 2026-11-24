@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from runner import manager
-from network_checks.load_config import ConfigError, health_url, load_profile, project_root
+from network_checks.load_config import project_root
 
 ROOT = project_root()
 WEB = ROOT / "packages" / "network-web"
@@ -42,11 +42,11 @@ app.add_middleware(NoCacheStaticMiddleware)
 
 
 class StartRunBody(BaseModel):
-    profile: str | None = Field(default=None, description="Saved product profile")
     suite: Literal["smoke", "full"] = "smoke"
-    target_url: str | None = Field(
-        default=None,
-        description="Optional pasted site link; overrides profile when set",
+    target_url: str = Field(
+        ...,
+        min_length=1,
+        description="Site link to check, for example https://example.com/",
     )
 
 
@@ -76,33 +76,10 @@ def api_health() -> dict:
     return {"ok": True}
 
 
-@app.get("/api/profiles")
-def api_profiles() -> dict:
-    try:
-        profiles = manager.list_available_profiles()
-    except ConfigError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    enriched = []
-    for item in profiles:
-        try:
-            loaded = load_profile(item["name"])
-            enriched.append(
-                {
-                    **item,
-                    "health_url": health_url(loaded),
-                    "using_example_targets": bool(loaded.get("usingExampleTargets")),
-                }
-            )
-        except ConfigError:
-            enriched.append({**item, "health_url": "", "using_example_targets": False})
-    return {"profiles": enriched}
-
-
 @app.post("/api/runs")
 def api_start_run(body: StartRunBody) -> dict:
     try:
-        run = manager.start(body.profile, body.suite, target_url=body.target_url)
+        run = manager.start(body.suite, target_url=body.target_url)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:

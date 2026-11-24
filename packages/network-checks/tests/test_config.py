@@ -1,4 +1,4 @@
-"""Profile selection. Switching product is a config change, not a new suite."""
+"""Dynamic site profile from TARGET_URL; YAML is only a fallback."""
 
 from pathlib import Path
 
@@ -6,44 +6,91 @@ import pytest
 
 from network_checks.load_config import ConfigError, load_profile, project_root
 
-PROFILES = ("ecommerce", "erp", "cms", "fintech")
 
-
-@pytest.mark.parametrize("name", PROFILES)
-def test_profile_switch(name: str, case) -> None:
-    profile = load_profile(name)
+def test_target_url_builds_one_site_profile(
+    monkeypatch: pytest.MonkeyPatch, case
+) -> None:
+    monkeypatch.setenv("TARGET_URL", "https://example.com/")
+    monkeypatch.delenv("NETWORK_PROFILE", raising=False)
+    monkeypatch.delenv("TARGETS_FILE", raising=False)
+    profile = load_profile()
     case.actual = (
-        f"name={profile['name']}; hosts={len(profile['hosts'])}; "
-        f"criticalPort={profile['criticalPort']}; readOnly={profile['readOnly']}"
+        f"name={profile['name']}; host={profile['hosts'][0]}; "
+        f"baseUrl={profile['http']['baseUrl']}; targetsFile={profile['targetsFile']}"
     )
-    assert profile["name"] == name
-    assert profile["hosts"]
-    assert profile["http"]["baseUrl"].startswith("https://")
+    assert profile["name"] == "site"
+    assert profile["hosts"] == ["example.com"]
+    assert profile["http"]["baseUrl"] == "https://example.com"
+    assert profile["http"]["healthPath"] == "/"
+    assert profile["http"]["redirectUrl"] == "http://example.com/"
     assert profile["criticalPort"] == 443
     assert profile["readOnly"] is True
+    assert profile["targetsFile"] == "(dynamic from TARGET_URL)"
+    assert profile["usingExampleTargets"] is False
 
 
-def test_each_profile_keeps_its_overlay(monkeypatch: pytest.MonkeyPatch, case) -> None:
-    """Assert against the committed example so a local product YAML can rename overlays."""
-    example = project_root() / "config" / "targets.example.yaml"
-    monkeypatch.setenv("TARGETS_FILE", str(example))
-    overlays = {
-        "ecommerce": ["checkout-api"],
-        "erp": ["erp-api"],
-        "cms": ["graphql-origin"],
-        "fintech": ["payment-gateway", "webhook-receiver"],
-    }
-    found_map = {}
-    for name, required in overlays.items():
-        found = [item["name"] for item in load_profile(name)["overlays"]]
-        found_map[name] = found
-        for overlay in required:
-            assert overlay in found
-    case.actual = str(found_map)
+def test_target_url_wins_over_yaml(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case
+) -> None:
+    target = tmp_path / "targets.yaml"
+    target.write_text(
+        """
+site:
+  hosts: [yaml.example.com]
+  ports: [443]
+  http:
+    baseUrl: https://yaml.example.com
+    healthPath: /health
+    expectedStatus: [200]
+  latencyMs: 800
+  timeoutSec: 5
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("TARGETS_FILE", str(target))
+    monkeypatch.setenv("TARGET_URL", "https://from-url.example/")
+    profile = load_profile()
+    case.actual = f"host={profile['hosts'][0]}; baseUrl={profile['http']['baseUrl']}"
+    assert profile["hosts"] == ["from-url.example"]
+    assert profile["http"]["baseUrl"] == "https://from-url.example"
 
 
-def test_unknown_profile_rejected(case) -> None:
-    with pytest.raises(ConfigError, match="cms") as caught:
+def test_yaml_site_fallback_without_target_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case
+) -> None:
+    target = tmp_path / "targets.yaml"
+    target.write_text(
+        """
+site:
+  hosts: [api.staging.example.com]
+  ports: [443]
+  http:
+    baseUrl: https://api.staging.example.com
+    healthPath: /health
+    expectedStatus: [200]
+  latencyMs: 800
+  timeoutSec: 5
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("TARGET_URL", raising=False)
+    monkeypatch.setenv("TARGETS_FILE", str(target))
+    profile = load_profile()
+    case.actual = (
+        f"name={profile['name']}; host={profile['hosts'][0]}; "
+        f"redirectUrl={profile['http'].get('redirectUrl', '-')}"
+    )
+    assert profile["name"] == "site"
+    assert profile["hosts"] == ["api.staging.example.com"]
+    assert profile["criticalPort"] == 443
+    assert "redirectUrl" not in profile["http"]
+    assert profile["dns"]["multiAHost"] == "api.staging.example.com"
+    assert profile["unreachableHost"] == "192.0.2.1"
+
+
+def test_unknown_profile_rejected(monkeypatch: pytest.MonkeyPatch, case) -> None:
+    monkeypatch.delenv("TARGET_URL", raising=False)
+    with pytest.raises(ConfigError, match="site") as caught:
         load_profile("does-not-exist")
     case.actual = f"raised={type(caught.value).__name__}: {caught.value}"
 
@@ -56,8 +103,9 @@ def test_missing_local_file_uses_the_example(
     example = (project_root() / "config" / "targets.example.yaml").read_text(encoding="utf-8")
     (config_dir / "targets.example.yaml").write_text(example, encoding="utf-8")
     monkeypatch.setattr("network_checks.load_config.project_root", lambda: tmp_path)
+    monkeypatch.delenv("TARGET_URL", raising=False)
     monkeypatch.delenv("TARGETS_FILE", raising=False)
-    profile = load_profile("cms")
+    profile = load_profile("site")
     case.actual = (
         f"usingExampleTargets={profile['usingExampleTargets']}; "
         f"targetsFile={profile['targetsFile']}"
@@ -70,46 +118,20 @@ def test_targets_file_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, 
     source = project_root() / "config" / "targets.example.yaml"
     target = tmp_path / "targets.yaml"
     target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.delenv("TARGET_URL", raising=False)
     monkeypatch.setenv("TARGETS_FILE", str(target))
-    profile = load_profile("erp")
+    profile = load_profile("site")
     case.actual = (
         f"name={profile['name']}; targetsFile={profile['targetsFile']}; "
         f"usingExampleTargets={profile['usingExampleTargets']}"
     )
-    assert profile["name"] == "erp"
+    assert profile["name"] == "site"
     assert profile["targetsFile"] == str(target.resolve())
     assert profile["usingExampleTargets"] is False
 
 
-def test_minimal_profile_does_not_invent_a_public_url(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case
-) -> None:
-    target = tmp_path / "targets.yaml"
-    target.write_text(
-        """
-cms:
-  hosts: [api.cms.staging.example.com]
-  ports: [443]
-  http:
-    baseUrl: https://api.cms.staging.example.com
-    healthPath: /health
-    expectedStatus: [200]
-  latencyMs: 800
-  timeoutSec: 5
-""",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("TARGETS_FILE", str(target))
-    profile = load_profile("cms")
-    case.actual = (
-        f"redirectUrl={profile['http'].get('redirectUrl', '-')}; "
-        f"multiAHost={profile['dns']['multiAHost']}; "
-        f"unreachableHost={profile['unreachableHost']}"
-    )
-    assert profile["http"]["baseUrl"] == "https://api.cms.staging.example.com"
-    assert profile["http"]["healthPath"] == "/health"
-    assert profile["latencyMs"] == 800
-    assert profile["criticalPort"] == 443
-    assert "redirectUrl" not in profile["http"]
-    assert profile["dns"]["multiAHost"] == "api.cms.staging.example.com"
-    assert profile["unreachableHost"] == "192.0.2.1"
+def test_bad_target_url_rejected(monkeypatch: pytest.MonkeyPatch, case) -> None:
+    monkeypatch.setenv("TARGET_URL", "ftp://example.com/")
+    with pytest.raises(ConfigError, match="http:// or https://") as caught:
+        load_profile()
+    case.actual = f"raised={type(caught.value).__name__}: {caught.value}"

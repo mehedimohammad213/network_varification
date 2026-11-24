@@ -1,4 +1,3 @@
-const profileEl = document.getElementById("profile");
 const suiteEl = document.getElementById("suite");
 const targetUrlEl = document.getElementById("targetUrl");
 const runForm = document.getElementById("runForm");
@@ -186,15 +185,6 @@ function setBusy(busy) {
   loadingPanel.hidden = !busy;
   targetUrlEl.disabled = busy;
   suiteEl.disabled = busy;
-  syncProfileEnabled();
-  if (busy) {
-    profileEl.disabled = true;
-  }
-}
-
-function syncProfileEnabled() {
-  const hasLink = Boolean((targetUrlEl.value || "").trim());
-  profileEl.disabled = hasLink || runBtn.disabled;
 }
 
 function showError(message) {
@@ -342,9 +332,8 @@ function renderRows(tests) {
 function renderRun(run) {
   metaEl.hidden = false;
   metaEl.textContent = [
-    run.target_url ? `Checked link: ${run.target_url}` : `Profile: ${run.profile}`,
+    run.target_url ? `Checked link: ${run.target_url}` : null,
     run.health_url ? `Health page: ${run.health_url}` : null,
-    run.using_example_targets ? "Using sample lab targets (not your live product evidence)" : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -392,27 +381,6 @@ function renderRun(run) {
   renderRows(run.tests);
 }
 
-async function loadProfiles() {
-  const res = await fetch("/api/profiles");
-  if (!res.ok) {
-    throw new Error(await res.text());
-  }
-  const data = await res.json();
-  profileEl.innerHTML = "";
-  for (const p of data.profiles || []) {
-    const opt = document.createElement("option");
-    opt.value = p.name;
-    opt.textContent = p.description
-      ? `${p.name} — ${p.description}`
-      : p.name;
-    profileEl.appendChild(opt);
-  }
-  if (!profileEl.options.length) {
-    throw new Error("No profiles found in targets YAML.");
-  }
-  syncProfileEnabled();
-}
-
 function stopPolling() {
   if (pollTimer) {
     clearInterval(pollTimer);
@@ -436,8 +404,8 @@ async function pollRun(runId) {
 async function startRun() {
   showError("");
   const pasted = (targetUrlEl.value || "").trim();
-  if (!pasted && !profileEl.value) {
-    showError("Paste a site link or choose a profile.");
+  if (!pasted) {
+    showError("Paste a site link to check.");
     return;
   }
 
@@ -446,12 +414,7 @@ async function startRun() {
   rowsEl.innerHTML =
     '<tr class="empty"><td colspan="4">Waiting for results…</td></tr>';
 
-  const payload = { suite: suiteEl.value };
-  if (pasted) {
-    payload.target_url = pasted;
-  } else {
-    payload.profile = profileEl.value;
-  }
+  const payload = { suite: suiteEl.value, target_url: pasted };
 
   const res = await fetch("/api/runs", {
     method: "POST",
@@ -488,10 +451,4 @@ runForm.addEventListener("submit", (event) => {
     setBusy(false);
     showError(String(err.message || err));
   });
-});
-
-targetUrlEl.addEventListener("input", syncProfileEnabled);
-
-loadProfiles().catch((err) => {
-  showError(`Could not load profiles: ${err.message || err}`);
 });

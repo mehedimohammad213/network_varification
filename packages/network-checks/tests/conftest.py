@@ -75,12 +75,13 @@ TEST_EXPECTED: dict[str, str] = {
     "NET_N03": "httpx.TimeoutException within short budget+3s",
     "NET_N04": "TlsError kind verify (SNI mismatch)",
     "overlay_endpoints_reachable": "Each overlay host:port accepts TCP",
-    "profile_switch": "Profile loads with https baseUrl, port 443, readOnly",
-    "each_profile_keeps_its_overlay": "Example overlay name present for each product",
+    "target_url_builds_one_site_profile": "Dynamic site profile from TARGET_URL",
+    "target_url_wins_over_yaml": "TARGET_URL host wins over YAML",
+    "yaml_site_fallback_without_target_url": "YAML site profile when TARGET_URL unset",
     "unknown_profile_rejected": "ConfigError mentioning known profiles",
     "missing_local_file_uses_the_example": "usingExampleTargets True; example path",
     "targets_file_override": "TARGETS_FILE path used; not example",
-    "minimal_profile_does_not_invent_a_public_url": "No invented redirectUrl; defaults applied",
+    "bad_target_url_rejected": "ConfigError for non-http(s) TARGET_URL",
 }
 
 _CASE_ID = re.compile(r"test_(NET_[A-Z]\d{2})")

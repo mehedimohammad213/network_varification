@@ -127,10 +127,11 @@ Admin publish flows, content rules, and permissions are a different suite.
 
 ## Traceability
 
-| Profile switch | Test |
-|----------------|------|
-| All four names load | `test_profile_switch` |
-| Overlay name stays with its product | `test_each_profile_keeps_its_overlay` |
+| Config behavior | Test |
+|-----------------|------|
+| `TARGET_URL` builds one `site` profile | `test_target_url_builds_one_site_profile` |
+| `TARGET_URL` wins over YAML | `test_target_url_wins_over_yaml` |
+| YAML `site` fallback without URL | `test_yaml_site_fallback_without_target_url` |
 | Unknown name fails with the known list | `test_unknown_profile_rejected` |
 | `TARGETS_FILE` overrides the example | `test_targets_file_override` |
-| A minimal block does not gain a public redirect URL | `test_minimal_profile_does_not_invent_a_public_url` |
+| Bad `TARGET_URL` rejected | `test_bad_target_url_rejected` |

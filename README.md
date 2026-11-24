@@ -1,6 +1,6 @@
 # Network quality gate
 
-Reusable DNS, TCP, TLS, HTTP, and latency checks for ecommerce, ERP, CMS, and fintech. Point the suite at a product by editing a profile. The cases themselves stay in this repo.
+Reusable DNS, TCP, TLS, HTTP, and latency checks. Point the suite at any site with one URL — same checks for every product. The cases themselves stay in this repo.
 
 This is a client-side probe. It does not open a browser, and it does not post, pay, or publish.
 
@@ -17,19 +17,20 @@ Python 3.11 or newer (3.12 in CI).
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp config/targets.example.yaml config/targets.yaml
 ```
 
 If `python3 -m venv` stops because `ensurepip` is missing, install the distro `python3-venv` package, or run `python3 -m venv .venv --without-pip` and bootstrap pip with `get-pip.py` inside that environment.
 
 ### Config
 
-| File | Purpose | Committed? |
-|------|---------|------------|
-| `config/targets.yaml` | Hosts, `baseUrl`, ports, latency, overlays | No (gitignored) |
-| `config/targets.example.yaml` | Safe public-lab sample | Yes |
+One dynamic condition: the site URL. Hosts, ports, health path, and HTTP→HTTPS redirect are built from it.
 
-Pick the product with a shell or CI export (`NETWORK_PROFILE=cms`). Optional `TARGETS_FILE` points at another YAML. Defaults are profile `cms` and `config/targets.yaml` (or the example if that file is missing). Edit the YAML for hosts and URLs — not env vars.
+| Input | Purpose |
+|-------|---------|
+| `TARGET_URL` | CLI / CI — preferred |
+| UI site link | Browser runner — same builder |
+| `config/targets.yaml` | Optional fallback when `TARGET_URL` is unset (gitignored) |
+| `config/targets.example.yaml` | Public lab sample if no local YAML (committed) |
 
 ## Browser UI (for non-tech clients)
 
@@ -41,32 +42,29 @@ pip install -r requirements.txt
 uvicorn app:app --app-dir packages/network-api --host 0.0.0.0 --port 8000
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Paste a site link **or** pick a profile, click **Run check**, and read Expected vs Actual. The same run still writes `reports/smoke.html` (or `full.html`).
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Paste a site link, choose smoke or full, click **Run check**, and read Expected vs Actual. The same run still writes `reports/smoke.html` (or `full.html`).
 
-API cheat sheet: `GET /api/profiles`, `POST /api/runs`, `GET /api/runs/{id}`, `GET /docs`.
+API cheat sheet: `POST /api/runs`, `GET /api/runs/{id}`, `GET /docs`.
 
 ## Smoke and full (CLI)
 
-Run from the repository root (defaults to `cms` unless you export `NETWORK_PROFILE`):
-
 ```bash
-pytest -m smoke --html=reports/smoke.html --self-contained-html
+TARGET_URL=https://your-site.com/ pytest -m smoke --html=reports/smoke.html --self-contained-html
 ```
 
 Full suite, after smoke is green:
 
 ```bash
-pytest --html=reports/full.html --self-contained-html --junitxml=reports/junit.xml
+TARGET_URL=https://your-site.com/ pytest --html=reports/full.html --self-contained-html --junitxml=reports/junit.xml
 ```
 
-Override for one run:
+One case:
 
 ```bash
-NETWORK_PROFILE=ecommerce pytest -m smoke
-pytest -m net_c03
+TARGET_URL=https://your-site.com/ pytest -m net_c03
 ```
 
-Profiles that share the example file hit the same public lab, so any of `ecommerce`, `erp`, `cms`, or `fintech` can prove the suite. Change hosts in `targets.yaml` before treating a green run as product evidence.
+Without `TARGET_URL`, the loader uses the single `site` block in `config/targets.yaml` (or the example lab).
 
 ## Reports
 
@@ -79,50 +77,27 @@ Profiles that share the example file hit the same public lab, so any of `ecommer
 
 The HTML environment table repeats the profile and the targets file. The Results table includes **Expected** and **Actual** columns for each case. A row that says example targets are in use is not a staging result. `reports/` is gitignored except for `.gitkeep`.
 
-## Add a product profile
+## Point at a site
 
-1. Copy an existing block in `config/targets.yaml` (start from the example if the local file does not exist yet).
-2. Name it, or reuse `ecommerce`, `erp`, `cms`, or `fintech`.
-3. Set `hosts`, `ports`, `http.baseUrl`, `http.healthPath`, `http.expectedStatus`, `latencyMs`, and `timeoutSec`.
-4. Set `http.redirectUrl` to that product's `http://` URL. The loader will not substitute a public URL.
-5. Set `dns.multiAHost` and `dns.minAddresses` to the DNS design. Use `1` when the name has a single address.
-6. Add overlays for extra ports (CDN, GraphQL origin, ERP API, payment gateway). They run in the full suite through the same TCP check as NET-C01.
-7. Keep tokens, client certificates, and production credentials out of the file.
-8. Run smoke against DEV-LAB first, then point the same keys at staging.
+Prefer the URL — no YAML edit required:
 
-Minimal block:
-
-```yaml
-cms:
-  hosts:
-    - api.cms.staging.example.com
-  ports: [443]
-  http:
-    baseUrl: https://api.cms.staging.example.com
-    healthPath: /health
-    expectedStatus: [200]    # or [401] when the route is gated on purpose
-    redirectUrl: http://cms.staging.example.com/
-  latencyMs: 800
-  timeoutSec: 5
-  overlays:
-    - name: media-cdn
-      host: cdn.cms.staging.example.com
-      port: 443
+```bash
+TARGET_URL=https://api.staging.example.com/health pytest -m smoke
 ```
 
-`expectedStatus` may be 401 when a health or GraphQL route is supposed to demand auth. That is still a reachability result, not an auth test.
+Optional YAML fallback (single `site` block only) when you want fixed hosts without exporting `TARGET_URL` every time. Overlays remain supported in that file for extra TCP endpoints in the full suite.
 
 ## CMS walkthrough
 
 Network probing of the CMS, not the editor UI.
 
 1. List endpoints: API or GraphQL origin, preview host, media CDN, webhook receiver, auth host.
-2. Fill the `cms` profile. Auth host is reachability only.
+2. Set `TARGET_URL` to the primary HTTPS origin (auth host is reachability only if you add it as an overlay later).
 3. Start the local CMS, or use staging URLs and connect VPN when the names are private.
 4. Run the smoke command above.
 5. Triage with the table below.
 6. Run the full command once smoke is green.
-7. Keep `reports/` with the ticket, and write down local vs staging. Check `using_example_targets` before you trust the run.
+7. Keep `reports/` with the ticket, and write down local vs staging.
 
 Not in this suite: publish flows, content rules, permissions.
 
@@ -146,12 +121,12 @@ Gate on smoke. Run the full suite nightly. Split the ticket into infra, applicat
 
 `.github/workflows/network-checks.yml`
 
-| Event | Suite | Profile |
-|-------|-------|---------|
-| Pull request | Smoke | `cms` |
-| Nightly 02:00 UTC, and manual dispatch | Full | `cms` |
+| Event | Suite | Target |
+|-------|-------|--------|
+| Pull request | Smoke | `TARGET_URL=https://example.com/` |
+| Nightly 02:00 UTC, and manual dispatch | Full | `TARGET_URL=https://example.com/` |
 
-The job fails when smoke fails. HTML and JUnit are uploaded as artifacts. Point `NETWORK_PROFILE` and the runner's network at staging when the example lab is no longer the target. Private ERP and fintech production need a runner that is already allowlisted; do not put credentials in the workflow.
+The job fails when smoke fails. HTML and JUnit are uploaded as artifacts. Point `TARGET_URL` and the runner's network at staging when the example lab is no longer the target. Private production hosts need a runner that is already allowlisted; do not put credentials in the workflow.
 
 ## Layout
 

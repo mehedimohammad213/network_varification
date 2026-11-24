@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=6" />
+    <link rel="stylesheet" href="/static/styles.css?v=7" />
   </head>
   <body>
     <div class="page">
@@ -18,7 +18,7 @@
         <p class="brand">Network Verification</p>
         <h1>Check if the site is reachable and healthy</h1>
         <p class="lede">
-          Paste a site link or pick a saved profile, then run the check.
+          Paste a site link, choose smoke or full, then run the check.
           Results are written in plain language — what we checked, what happened, and what to do if something fails.
         </p>
       </header>
@@ -30,14 +30,11 @@
             id="targetUrl"
             type="text"
             inputmode="url"
-            placeholder="Paste https://your-site.com/ — this overrides the profile below"
+            placeholder="Paste https://your-site.com/"
             autocomplete="url"
             spellcheck="false"
+            required
           />
-        </label>
-        <label class="field">
-          <span>Profile (only if link is empty)</span>
-          <select id="profile"></select>
         </label>
         <label class="field">
           <span>Suite</span>
@@ -92,6 +89,6 @@
         </table>
       </section>
     </div>
-    <script src="/static/app.js?v=6"></script>
+    <script src="/static/app.js?v=7"></script>
   </body>
 </html>

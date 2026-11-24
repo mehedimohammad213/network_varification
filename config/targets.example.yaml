@@ -1,16 +1,9 @@
-# DEV-LAB sample. Public hosts only — safe to commit.
-# Copy to config/targets.yaml and replace hosts and URLs for a real product.
-# targets.yaml is gitignored. Reports record which file was loaded.
-#
-# Minimal shape the loader accepts:
-#   hosts, ports, http.baseUrl, http.healthPath, http.expectedStatus,
-#   latencyMs, timeoutSec
-# Other keys have code defaults (blackhole addresses, lab oracles).
-# http.redirectUrl is intentionally not invented: H03 and N01 require the
-# plaintext URL of the product you are gating.
+# Optional YAML fallback when TARGET_URL is unset.
+# Prefer: TARGET_URL=https://your-site.com/ pytest -m smoke
+# One `site` profile — same shape the dynamic builder produces from a URL.
 
-ecommerce:
-  description: Storefront, CDN, and checkout API reachability
+site:
+  description: Public lab site (example.com)
   hosts:
     - example.com
   ports: [443]
@@ -27,105 +20,4 @@ ecommerce:
   dns:
     multiAHost: one.one.one.one
     minAddresses: 2
-  overlays:
-    - name: cdn
-      host: example.com
-      port: 443
-    - name: checkout-api
-      host: example.com
-      port: 443
-
-erp:
-  description: ERP API reachability. Connect VPN before private hosts.
-  hosts:
-    - example.com
-  ports: [443]
-  criticalPort: 443
-  latencyMs: 3000
-  timeoutSec: 5
-  http:
-    baseUrl: https://example.com
-    healthPath: /
-    expectedStatus: [200]
-    notFoundPath: /net-h05-missing-path
-    redirectUrl: http://one.one.one.one/
-    expectedHeaders: [content-type]
-  dns:
-    multiAHost: one.one.one.one
-    minAddresses: 2
-  # DB and SOAP ports belong here only when this runner is on the app subnet.
-  # Do not point closedPort at a port the ERP is supposed to expose.
-  overlays:
-    - name: erp-api
-      host: example.com
-      port: 443
-
-cms:
-  description: Headless CMS origin, preview, and media CDN
-  hosts:
-    - example.com
-  ports: [443]
-  criticalPort: 443
-  latencyMs: 3000
-  timeoutSec: 5
-  http:
-    baseUrl: https://example.com
-    healthPath: /
-    expectedStatus: [200]
-    notFoundPath: /net-h05-missing-path
-    redirectUrl: http://one.one.one.one/
-    expectedHeaders: [content-type]
-  dns:
-    multiAHost: one.one.one.one
-    minAddresses: 2
-  overlays:
-    - name: graphql-origin
-      host: example.com
-      port: 443
-    - name: media-cdn
-      host: example.com
-      port: 443
-
-fintech:
-  description: Read-only gateway reachability. This suite never submits a payment.
-  readOnly: true
-  hosts:
-    - example.com
-  ports: [443]
-  criticalPort: 443
-  # Tighten latencyMs for a real payment SLA (example lab keeps 2000).
-  latencyMs: 2000
-  timeoutSec: 5
-  http:
-    baseUrl: https://example.com
-    healthPath: /
-    expectedStatus: [200]
-    notFoundPath: /net-h05-missing-path
-    redirectUrl: http://one.one.one.one/
-    expectedHeaders: [content-type]
-    # On a real gateway, require HSTS (enables NET-H07):
-    # headerContains:
-    #   strict-transport-security: "max-age="
-    headerContains: {}
-  dns:
-    multiAHost: one.one.one.one
-    minAddresses: 2
-    # Pin staging/gateway IPs for cutover safety (enables NET-D05):
-    # expectedAddresses: ["203.0.113.10", "203.0.113.11"]
-    expectedAddresses: []
-  tls:
-    minDaysRemaining: 14
-    # Provision client certs on the allowlisted runner only (enables NET-M01).
-    # Do not commit private keys. Paths are local to the runner.
-    mtls:
-      certFile: ""
-      keyFile: ""
-      caFile: ""
-      # host/port default to primary tls host:443 when left empty
-  overlays:
-    - name: payment-gateway
-      host: example.com
-      port: 443
-    - name: webhook-receiver
-      host: example.com
-      port: 443
+  overlays: []

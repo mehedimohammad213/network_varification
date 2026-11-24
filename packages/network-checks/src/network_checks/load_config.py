@@ -1,11 +1,10 @@
-"""Load a product profile from targets YAML.
+"""Load one site profile — dynamically from TARGET_URL, or from YAML.
 
-NETWORK_PROFILE selects ecommerce, erp, cms, or fintech.
-TARGETS_FILE overrides the YAML path. A gitignored config/targets.yaml wins
-over the committed example so real URLs never have to be committed.
+Primary path: set TARGET_URL (CLI) or paste a site link (UI). One condition
+builds hosts, baseUrl, ports, and redirect for any site.
 
-Hosts and baseUrl stay in YAML. Set NETWORK_PROFILE / TARGETS_FILE in the
-shell or CI when you need something other than the defaults.
+Fallback: a single `site` block in config/targets.yaml (or the example file)
+when TARGET_URL is unset. Optional TARGETS_FILE overrides the YAML path.
 """
 
 from __future__ import annotations
@@ -15,6 +14,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+from network_checks.from_url import profile_from_url
 
 CODE_DEFAULTS: dict[str, Any] = {
     "readOnly": True,
@@ -27,23 +28,19 @@ CODE_DEFAULTS: dict[str, Any] = {
         "minAddresses": 1,
         "badResolver": "192.0.2.1",
         "resolverPort": 53,
-        # Empty = NET-D05 skipped. Pin staging/gateway IPs for fintech cutover safety.
+        # Empty = NET-D05 skipped.
         "expectedAddresses": [],
     },
     "http": {
         "notFoundPath": "/net-h05-missing-path",
         "expectedHeaders": ["content-type"],
-        # Optional substring checks, e.g. {"strict-transport-security": "max-age="}.
         # Empty = NET-H07 skipped.
         "headerContains": {},
     },
     "tls": {
         "badCertHost": "expired.badssl.com",
         "sniMismatchHost": "wrong.host.badssl.com",
-        # Fail NET-H06 when the peer cert expires sooner than this many days.
         "minDaysRemaining": 14,
-        # mTLS paths stay empty until a real client cert is provisioned on the runner.
-        # Empty certFile/keyFile = NET-M01 skipped (TCP overlay alone is not mTLS proof).
         "mtls": {
             "certFile": "",
             "keyFile": "",
@@ -60,6 +57,7 @@ CODE_DEFAULTS: dict[str, Any] = {
 }
 
 RESERVED_KEYS = {"defaults"}
+DEFAULT_PROFILE = "site"
 
 
 class ConfigError(Exception):
@@ -72,7 +70,6 @@ def project_root() -> Path:
     for parent in here.parents:
         if (parent / "config").is_dir() and (parent / "packages").is_dir():
             return parent
-    # Fallback: packages/network-checks/src/network_checks -> repo root
     return here.parents[4]
 
 
@@ -92,7 +89,7 @@ def resolve_targets_path(explicit: str | None = None) -> Path:
 
 
 def list_profiles(targets_file: str | None = None) -> list[dict[str, Any]]:
-    """Return profile names and short descriptions for the UI."""
+    """Return profile names and short descriptions (YAML fallback only)."""
     path = resolve_targets_path(targets_file)
     if not path.is_file():
         raise ConfigError(f"Targets file not found: {path}.")
@@ -110,35 +107,87 @@ def list_profiles(targets_file: str | None = None) -> list[dict[str, Any]]:
     return profiles
 
 
-def load_profile(profile: str | None = None, targets_file: str | None = None) -> dict[str, Any]:
-    """Return one profile with defaults filled in and the name attached."""
+def load_profile(
+    profile: str | None = None,
+    targets_file: str | None = None,
+    target_url: str | None = None,
+) -> dict[str, Any]:
+    """Return one profile with defaults filled in and the name attached.
+
+    Prefer TARGET_URL / target_url (dynamic). Otherwise load the YAML `site`
+    profile (or NETWORK_PROFILE if set).
+    """
+    url = (target_url if target_url is not None else os.environ.get("TARGET_URL") or "").strip()
+    if url:
+        try:
+            block = profile_from_url(url)
+        except ValueError as exc:
+            raise ConfigError(str(exc)) from exc
+        return _finalize(
+            DEFAULT_PROFILE,
+            block,
+            targets_file="(dynamic from TARGET_URL)",
+            using_example=False,
+            file_defaults={},
+        )
+
     path = resolve_targets_path(targets_file)
     if not path.is_file():
         raise ConfigError(
-            f"Targets file not found: {path}. Copy config/targets.example.yaml "
-            "to config/targets.yaml and set NETWORK_PROFILE."
+            f"Targets file not found: {path}. Set TARGET_URL=https://your-site.com/ "
+            "or copy config/targets.example.yaml to config/targets.yaml."
         )
     document = _read_yaml(path)
-    name = profile or os.environ.get("NETWORK_PROFILE") or "cms"
+    name = profile or os.environ.get("NETWORK_PROFILE") or DEFAULT_PROFILE
     known = [key for key in document if key not in RESERVED_KEYS]
     if name not in document or name in RESERVED_KEYS:
         raise ConfigError(
-            f"Unknown NETWORK_PROFILE {name!r}. Choose one of: {', '.join(known) or '(none)'}."
+            f"Unknown NETWORK_PROFILE {name!r}. Choose one of: {', '.join(known) or '(none)'} "
+            "or set TARGET_URL."
         )
-    merged = _merge(CODE_DEFAULTS, document.get("defaults") or {})
-    merged = _merge(merged, document[name])
+    return _finalize(
+        name,
+        document[name],
+        targets_file=str(path),
+        using_example=path.name == "targets.example.yaml",
+        file_defaults=document.get("defaults") or {},
+    )
+
+
+def health_url(profile: dict[str, Any]) -> str:
+    base = str(profile["http"]["baseUrl"]).rstrip("/")
+    path = str(profile["http"]["healthPath"])
+    if not path.startswith("/"):
+        path = "/" + path
+    return base + path
+
+
+def _finalize(
+    name: str,
+    block: dict[str, Any],
+    *,
+    targets_file: str,
+    using_example: bool,
+    file_defaults: dict[str, Any],
+) -> dict[str, Any]:
+    merged = _merge(CODE_DEFAULTS, file_defaults)
+    merged = _merge(merged, block)
     _validate(name, merged)
     merged["name"] = name
-    merged["targetsFile"] = str(path)
-    merged["usingExampleTargets"] = path.name == "targets.example.yaml"
-    merged["criticalPort"] = int(merged["criticalPort"] if merged["criticalPort"] is not None else merged["ports"][0])
+    merged["targetsFile"] = targets_file
+    merged["usingExampleTargets"] = using_example
+    merged["criticalPort"] = int(
+        merged["criticalPort"] if merged["criticalPort"] is not None else merged["ports"][0]
+    )
     merged["ports"] = [int(port) for port in merged["ports"]]
     merged["latencyMs"] = int(merged["latencyMs"])
     merged["timeoutSec"] = float(merged["timeoutSec"])
     merged["negativeTimeoutSec"] = float(merged["negativeTimeoutSec"])
     merged["closedPort"] = int(merged["closedPort"])
     merged["http"]["expectedStatus"] = [int(code) for code in merged["http"]["expectedStatus"]]
-    merged["http"]["expectedHeaders"] = [str(header).lower() for header in merged["http"]["expectedHeaders"]]
+    merged["http"]["expectedHeaders"] = [
+        str(header).lower() for header in merged["http"]["expectedHeaders"]
+    ]
     header_contains = merged["http"].get("headerContains") or {}
     if not isinstance(header_contains, dict):
         raise ConfigError(f"Profile {name!r} http.headerContains must be a mapping of header to substring.")
@@ -173,14 +222,6 @@ def load_profile(profile: str | None = None, targets_file: str | None = None) ->
     }
     merged["negative"]["slowTimeoutSec"] = float(merged["negative"]["slowTimeoutSec"])
     return merged
-
-
-def health_url(profile: dict[str, Any]) -> str:
-    base = str(profile["http"]["baseUrl"]).rstrip("/")
-    path = str(profile["http"]["healthPath"])
-    if not path.startswith("/"):
-        path = "/" + path
-    return base + path
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

@@ -21,7 +21,7 @@ jobs:
           .venv/bin/pip install -r requirements.txt
       - name: P0 smoke
         env:
-          NETWORK_PROFILE: cms
+          TARGET_URL: https://example.com/
         run: >
           .venv/bin/pytest -m smoke
           --html=reports/smoke.html --self-contained-html
@@ -46,7 +46,7 @@ jobs:
           .venv/bin/pip install -r requirements.txt
       - name: Full suite
         env:
-          NETWORK_PROFILE: cms
+          TARGET_URL: https://example.com/
         run: >
           .venv/bin/pytest
           --html=reports/full.html --self-contained-html

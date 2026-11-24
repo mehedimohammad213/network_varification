@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from network_checks.load_config import ConfigError, health_url, list_profiles, load_profile, project_root
+from network_checks.load_config import ConfigError, load_profile, project_root
 from target_url import write_adhoc_targets
 
 Suite = Literal["smoke", "full"]
@@ -47,9 +47,6 @@ class RunManager:
         self._runs: dict[str, RunState] = {}
         self._latest_id: str | None = None
 
-    def list_available_profiles(self) -> list[dict[str, Any]]:
-        return list_profiles()
-
     def get(self, run_id: str) -> RunState | None:
         return self._runs.get(run_id)
 
@@ -58,38 +55,19 @@ class RunManager:
             return None
         return self._runs.get(self._latest_id)
 
-    def start(
-        self,
-        profile: str | None,
-        suite: Suite,
-        target_url: str | None = None,
-    ) -> RunState:
+    def start(self, suite: Suite, target_url: str) -> RunState:
         root = project_root()
-        targets_override: str | None = None
-        display_profile: str
-        health: str
-        using_example = False
         pasted = (target_url or "").strip()
+        if not pasted:
+            raise ValueError("Paste a site link to check.")
 
-        if pasted:
-            adhoc_path = root / "reports" / "adhoc_targets.yaml"
-            display_profile, health = write_adhoc_targets(pasted, adhoc_path)
-            targets_override = str(adhoc_path)
-            # Validate load works before starting the thread.
-            try:
-                load_profile(display_profile, targets_file=targets_override)
-            except ConfigError as exc:
-                raise ValueError(str(exc)) from exc
-        else:
-            if not profile:
-                raise ValueError("Choose a profile or paste a site link.")
-            display_profile = profile
-            try:
-                loaded = load_profile(profile)
-            except ConfigError as exc:
-                raise ValueError(str(exc)) from exc
-            health = health_url(loaded)
-            using_example = bool(loaded.get("usingExampleTargets"))
+        adhoc_path = root / "reports" / "adhoc_targets.yaml"
+        display_profile, health = write_adhoc_targets(pasted, adhoc_path)
+        targets_override = str(adhoc_path)
+        try:
+            load_profile(display_profile, targets_file=targets_override)
+        except ConfigError as exc:
+            raise ValueError(str(exc)) from exc
 
         with self._lock:
             if self._busy:
@@ -103,7 +81,7 @@ class RunManager:
                 status="queued",
                 health_url=health,
                 target_url=pasted,
-                using_example_targets=using_example,
+                using_example_targets=False,
                 report_html=f"reports/{'smoke' if suite == 'smoke' else 'full'}.html",
                 report_url=f"/reports/{'smoke' if suite == 'smoke' else 'full'}.html",
             )
