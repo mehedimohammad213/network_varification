@@ -26,8 +26,10 @@ flowchart LR
 In scope for v1:
 
 - TCP reachability and the critical port (not ICMP)
-- DNS: positive lookup, NXDOMAIN, address count, a resolver that does not answer
+- DNS: positive lookup, NXDOMAIN, address count, a resolver that does not answer, optional IP allowlist
 - HTTPS GET, TLS version, redirect to HTTPS, required headers, a designed 4xx
+- Certificate expiry window (`tls.minDaysRemaining`) and optional header-value checks (HSTS)
+- Optional mTLS client handshake when `tls.mtls` cert paths are set on the runner
 - Latency against the profile SLA, client timeouts, a hard retry limit
 - Fail-closed TLS: expired certificate and SNI / hostname mismatch
 
@@ -37,7 +39,6 @@ Out of scope for v1:
 - Load generation
 - Deep packet inspection, firewall changes, Wi-Fi radio
 - Database writes, mutating API calls, payment submission
-- mTLS client certificates (record the gateway as a TCP overlay until a later phase)
 
 ## 4. Environments
 
@@ -83,7 +84,7 @@ A report generated from `targets.example.yaml` is DEV-LAB evidence. `reports/evi
 4. Nightly or pre-release: the full suite passed, or each failure is triaged as infra, DNS, TLS, app health, SLA, or flake.
 5. No waived P0 is left without a named follow-up.
 
-Smoke path, in order: DNS → TCP → TLS → HTTPS GET → latency → report.
+Smoke path, in order: DNS → TCP → TLS (incl. expiry window) → HTTPS GET → latency → report.
 
 ## 7. Risks and mitigations
 

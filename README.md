@@ -183,4 +183,4 @@ pytest.ini                 root convenience config (points at network-checks)
 
 ## Out of scope
 
-Browser automation, load generation, database writes, and payment or CMS business rules. Later work, only if a defect needs it: packet capture, path MTU, multi-region runners, mTLS.
+Browser automation, load generation, database writes, and payment or CMS business rules. Later work, only if a defect needs it: packet capture, path MTU, multi-region runners. Fintech extras (cert expiry, HSTS value checks, IP allowlist, mTLS) are optional profile keys — see `docs/test_cases.md`.

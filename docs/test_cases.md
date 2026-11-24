@@ -38,6 +38,7 @@ Overlay endpoints in the profile use the same TCP helper. `test_overlay_endpoint
 | NET-D02 | P0 | smoke | `dns.nxdomainHost` is a name that must not exist | Resolve that name | `DNSError` with kind `nxdomain` | `test_NET_D02_nxdomain` |
 | NET-D03 | P1 | full | `dns.multiAHost` and `dns.minAddresses` match the DNS design. Example lab: `one.one.one.one` and 2. A product with one address sets `minAddresses: 1` or publishes the real count | Resolve `multiAHost` | Unique address count is at least `minAddresses` | `test_NET_D03_multi_a` |
 | NET-D04 | P1 | full | `dns.badResolver` does not answer (default TEST-NET-1) | Send one UDP DNS A query to that resolver | `TimeoutError` inside `negativeTimeoutSec` | `test_NET_D04_bad_resolver_times_out` |
+| NET-D05 | P1 | full | `dns.expectedAddresses` lists allowed IPs for the primary host. Empty list skips the case (DEV-LAB) | Resolve the primary host | Every resolved address is in the allowlist | `test_NET_D05_expected_addresses` |
 
 Manual oracle: `getent hosts <name>`. NXDOMAIN should exit non-zero.
 
@@ -50,8 +51,11 @@ Manual oracle: `getent hosts <name>`. NXDOMAIN should exit non-zero.
 | NET-H03 | P0 | smoke | `http.redirectUrl` is the product's `http://` URL | GET it and follow redirects | Final URL is `https` and status is below 400 | `test_NET_H03_redirect_completes` |
 | NET-H04 | P0 | smoke | `http.expectedHeaders` lists names the origin actually sends | GET the health URL | Each listed header is present, compared case-insensitively | `test_NET_H04_response_headers` |
 | NET-H05 | P0 | smoke | `http.notFoundPath` is a path that must not return 200. SPAs that answer 200 for unknown paths need a real 4xx route here | GET `baseUrl` + `notFoundPath` | Status is 400–499 | `test_NET_H05_client_error_status` |
+| NET-H06 | P0 | smoke | `tls.minDaysRemaining` is the renewal window (default 14) | Handshake and read peer `notAfter` | Days remaining is at or above `minDaysRemaining` | `test_NET_H06_cert_not_expiring_soon` |
+| NET-H07 | P1 | full | `http.headerContains` maps header name → required substring (e.g. HSTS `max-age=`). Empty mapping skips the case | GET the health URL | Each listed substring is present in the header value | `test_NET_H07_header_values` |
+| NET-M01 | P1 | full | `tls.mtls.certFile` and `keyFile` point at a client cert on the allowlisted runner. Empty paths skip the case | Handshake presenting the client certificate | Protocol is TLS 1.2 or 1.3 and a cipher is negotiated | `test_NET_M01_mtls_handshake` |
 
-Manual oracle: `curl -sS -D - -o /dev/null --max-time <timeout> <url>`.
+Manual oracle: `curl -sS -D - -o /dev/null --max-time <timeout> <url>`. For mTLS: `curl --cert <crt> --key <key> https://<gateway>/`.
 
 ## Latency and resilience (P1)
 
@@ -113,11 +117,13 @@ Admin publish flows, content rules, and permissions are a different suite.
 
 | Overlay | What to put in the profile | Case that covers it |
 |---------|----------------------------|---------------------|
-| Payment gateway | 443 overlay. Read-only | NET-C01, NET-H02 |
+| Payment gateway | 443 overlay. Read-only | NET-C01, NET-H02, NET-H06 |
 | Webhook receiver | TCP overlay from the allowlisted runner | Overlay TCP check |
-| mTLS | Not automated in v1. A green TCP check does not prove the client certificate | Manual follow-up |
+| HSTS / header policy | `http.headerContains` (e.g. `strict-transport-security: max-age=`) | NET-H07 |
+| IP / CDN pin | `dns.expectedAddresses` for the gateway host | NET-D05 |
+| mTLS | `tls.mtls.certFile` + `keyFile` on the runner (never commit keys) | NET-M01 |
 
-`readOnly: true` is the default. The HTTP helper implements GET only. Do not store gateway credentials in the targets file.
+`readOnly: true` is the default. The HTTP helper implements GET only. Do not store gateway credentials or private keys in the targets file. A green TCP overlay without NET-M01 is not mTLS proof.
 
 ## Traceability
 

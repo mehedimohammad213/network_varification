@@ -28,16 +28,17 @@ def test_each_profile_keeps_its_overlay(monkeypatch: pytest.MonkeyPatch, case) -
     example = project_root() / "config" / "targets.example.yaml"
     monkeypatch.setenv("TARGETS_FILE", str(example))
     overlays = {
-        "ecommerce": "checkout-api",
-        "erp": "erp-api",
-        "cms": "graphql-origin",
-        "fintech": "payment-gateway",
+        "ecommerce": ["checkout-api"],
+        "erp": ["erp-api"],
+        "cms": ["graphql-origin"],
+        "fintech": ["payment-gateway", "webhook-receiver"],
     }
     found_map = {}
-    for name, overlay in overlays.items():
+    for name, required in overlays.items():
         found = [item["name"] for item in load_profile(name)["overlays"]]
         found_map[name] = found
-        assert overlay in found
+        for overlay in required:
+            assert overlay in found
     case.actual = str(found_map)
 
 

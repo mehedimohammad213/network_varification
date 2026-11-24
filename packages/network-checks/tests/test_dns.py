@@ -1,4 +1,4 @@
-"""NET-D01 through NET-D04."""
+"""NET-D01 through NET-D05."""
 
 import pytest
 
@@ -55,3 +55,21 @@ def test_NET_D04_bad_resolver_times_out(profile, case) -> None:
             profile["negativeTimeoutSec"],
         )
     case.actual = f"raised={type(caught.value).__name__}: {caught.value}"
+
+
+@pytest.mark.net_d05
+def test_NET_D05_expected_addresses(profile, case) -> None:
+    expected = profile["dns"]["expectedAddresses"]
+    if not expected:
+        pytest.skip("dns.expectedAddresses is empty; pin gateway IPs for fintech staging")
+    host = profile["hosts"][0]
+    answer = resolve(host)
+    unexpected = [addr for addr in answer.addresses if addr not in expected]
+    missing = [addr for addr in expected if addr not in answer.addresses]
+    case.actual = (
+        f"resolved={list(answer.addresses)}; expected={expected}; "
+        f"unexpected={unexpected or '-'}; missing_ok={missing or '-'}"
+    )
+    # Every resolved address must be on the allowlist. Missing allowlist entries are OK
+    # (anycast / regional subsets) as long as nothing outside the list appears.
+    assert not unexpected, f"addresses outside allowlist: {unexpected}"

@@ -28,14 +28,30 @@ CODE_DEFAULTS: dict[str, Any] = {
         "minAddresses": 1,
         "badResolver": "192.0.2.1",
         "resolverPort": 53,
+        # Empty = NET-D05 skipped. Pin staging/gateway IPs for fintech cutover safety.
+        "expectedAddresses": [],
     },
     "http": {
         "notFoundPath": "/net-h05-missing-path",
         "expectedHeaders": ["content-type"],
+        # Optional substring checks, e.g. {"strict-transport-security": "max-age="}.
+        # Empty = NET-H07 skipped.
+        "headerContains": {},
     },
     "tls": {
         "badCertHost": "expired.badssl.com",
         "sniMismatchHost": "wrong.host.badssl.com",
+        # Fail NET-H06 when the peer cert expires sooner than this many days.
+        "minDaysRemaining": 14,
+        # mTLS paths stay empty until a real client cert is provisioned on the runner.
+        # Empty certFile/keyFile = NET-M01 skipped (TCP overlay alone is not mTLS proof).
+        "mtls": {
+            "certFile": "",
+            "keyFile": "",
+            "caFile": "",
+            "host": "",
+            "port": None,
+        },
     },
     "negative": {
         "slowUrl": "https://httpbin.org/delay/8",
@@ -141,12 +157,38 @@ def load_profile(profile: str | None = None, targets_file: str | None = None) ->
     merged["closedPort"] = int(merged["closedPort"])
     merged["http"]["expectedStatus"] = [int(code) for code in merged["http"]["expectedStatus"]]
     merged["http"]["expectedHeaders"] = [str(header).lower() for header in merged["http"]["expectedHeaders"]]
+    header_contains = merged["http"].get("headerContains") or {}
+    if not isinstance(header_contains, dict):
+        raise ConfigError(f"Profile {name!r} http.headerContains must be a mapping of header to substring.")
+    merged["http"]["headerContains"] = {
+        str(key).lower(): str(value) for key, value in header_contains.items() if str(value)
+    }
     merged["dns"]["minAddresses"] = int(merged["dns"]["minAddresses"])
     merged["dns"]["resolverPort"] = int(merged["dns"]["resolverPort"])
+    expected_addresses = merged["dns"].get("expectedAddresses") or []
+    if not isinstance(expected_addresses, list):
+        raise ConfigError(f"Profile {name!r} dns.expectedAddresses must be a list.")
+    merged["dns"]["expectedAddresses"] = [str(addr) for addr in expected_addresses if str(addr)]
     if not merged["dns"].get("multiAHost"):
         merged["dns"]["multiAHost"] = merged["hosts"][0]
     merged["tls"]["host"] = merged["tls"].get("host") or merged["hosts"][0]
     merged["tls"]["port"] = int(merged["tls"].get("port") or merged["criticalPort"])
+    merged["tls"]["minDaysRemaining"] = int(merged["tls"].get("minDaysRemaining") or 14)
+    mtls = merged["tls"].get("mtls") or {}
+    if not isinstance(mtls, dict):
+        raise ConfigError(f"Profile {name!r} tls.mtls must be a mapping.")
+    cert_file = str(mtls.get("certFile") or "").strip()
+    key_file = str(mtls.get("keyFile") or "").strip()
+    ca_file = str(mtls.get("caFile") or "").strip()
+    mtls_host = str(mtls.get("host") or "").strip() or merged["tls"]["host"]
+    mtls_port = mtls.get("port")
+    merged["tls"]["mtls"] = {
+        "certFile": cert_file,
+        "keyFile": key_file,
+        "caFile": ca_file,
+        "host": mtls_host,
+        "port": int(mtls_port) if mtls_port not in (None, "") else merged["tls"]["port"],
+    }
     merged["negative"]["slowTimeoutSec"] = float(merged["negative"]["slowTimeoutSec"])
     return merged
 
