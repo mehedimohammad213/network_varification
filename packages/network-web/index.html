@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=3" />
+    <link rel="stylesheet" href="/static/styles.css?v=4" />
   </head>
   <body>
     <div class="page">
@@ -46,8 +46,19 @@
             <option value="full">Full suite</option>
           </select>
         </label>
-        <button type="submit" id="runBtn" class="run">Run check</button>
+        <button type="submit" id="runBtn" class="run">
+          <span id="runBtnSpinner" class="btn-spinner" hidden aria-hidden="true"></span>
+          <span id="runBtnLabel">Run check</span>
+        </button>
       </form>
+
+      <div id="loadingPanel" class="loading-panel" hidden role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="loading-copy">
+          <p class="loading-title">Running network checks…</p>
+          <p class="loading-sub">DNS, TCP, TLS, and HTTP — usually under a minute for smoke.</p>
+        </div>
+      </div>
 
       <p id="meta" class="meta" hidden></p>
 
@@ -81,6 +92,6 @@
         </table>
       </section>
     </div>
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=4"></script>
   </body>
 </html>

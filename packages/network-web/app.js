@@ -3,6 +3,9 @@ const suiteEl = document.getElementById("suite");
 const targetUrlEl = document.getElementById("targetUrl");
 const runForm = document.getElementById("runForm");
 const runBtn = document.getElementById("runBtn");
+const runBtnSpinner = document.getElementById("runBtnSpinner");
+const runBtnLabel = document.getElementById("runBtnLabel");
+const loadingPanel = document.getElementById("loadingPanel");
 const metaEl = document.getElementById("meta");
 const summaryEl = document.getElementById("summary");
 const summaryStatus = document.getElementById("summaryStatus");
@@ -22,7 +25,9 @@ function fmtDuration(sec) {
 
 function setBusy(busy) {
   runBtn.disabled = busy;
-  runBtn.textContent = busy ? "Running…" : "Run check";
+  runBtnSpinner.hidden = !busy;
+  runBtnLabel.textContent = busy ? "Running…" : "Run check";
+  loadingPanel.hidden = !busy;
   targetUrlEl.disabled = busy;
   suiteEl.disabled = busy;
   syncProfileEnabled();
@@ -170,7 +175,7 @@ async function startRun() {
   setBusy(true);
   stopPolling();
   rowsEl.innerHTML =
-    '<tr class="empty"><td colspan="5">Running…</td></tr>';
+    '<tr class="empty"><td colspan="5">Waiting for results…</td></tr>';
 
   // Pasted link always wins over the profile dropdown.
   const payload = { suite: suiteEl.value };
