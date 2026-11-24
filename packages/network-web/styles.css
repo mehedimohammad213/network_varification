@@ -237,10 +237,18 @@ select:disabled {
   color: var(--muted);
 }
 
+.summary-hint {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  line-height: 1.45;
+  max-width: 46rem;
+}
+
 .report-link {
   color: var(--accent-ink);
   font-weight: 600;
   width: fit-content;
+  margin-top: 0.25rem;
 }
 
 .error {
@@ -265,12 +273,12 @@ select:disabled {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 720px;
+  min-width: 680px;
 }
 
 th,
 td {
-  padding: 0.85rem 0.9rem;
+  padding: 1rem 0.95rem;
   text-align: left;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
@@ -286,6 +294,7 @@ th {
 
 td {
   font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 td.mono {
@@ -300,13 +309,89 @@ td.mono {
   padding: 2rem 1rem;
 }
 
+.row-failed,
+.row-error {
+  background: #fff8f8;
+}
+
+.row-skipped {
+  background: #fffcf3;
+}
+
+.row-title {
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.row-check,
+.row-found {
+  margin: 0;
+  color: var(--muted);
+}
+
+.row-found {
+  color: var(--ink);
+}
+
+.row-tip {
+  margin: 0.65rem 0 0;
+  padding: 0.65rem 0.75rem;
+  background: #fff4f0;
+  border-left: 3px solid var(--fail);
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.row-skipped .row-tip {
+  background: var(--warn-bg);
+  border-left-color: var(--warn);
+}
+
+.row-tip-label {
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-weight: 700;
+  color: var(--fail);
+}
+
+.row-skipped .row-tip-label {
+  color: var(--warn);
+}
+
+.row-duration {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.tech {
+  margin-top: 0.65rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.tech summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent-ink);
+  width: fit-content;
+}
+
+.tech p {
+  margin: 0.4rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 .pill {
   display: inline-block;
-  padding: 0.2rem 0.55rem;
+  padding: 0.25rem 0.6rem;
   font-size: 0.78rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
 }
 
 .pill.passed {
@@ -332,5 +417,13 @@ td.mono {
 
   .run {
     width: 100%;
+  }
+
+  .row-duration {
+    display: none;
+  }
+
+  th:last-child {
+    display: none;
   }
 }

@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=4" />
+    <link rel="stylesheet" href="/static/styles.css?v=6" />
   </head>
   <body>
     <div class="page">
@@ -18,8 +18,8 @@
         <p class="brand">Network Verification</p>
         <h1>Check if the site is reachable and healthy</h1>
         <p class="lede">
-          Paste a site link or pick a saved profile, run the check, and review Expected vs Actual.
-          No Python install needed on this computer.
+          Paste a site link or pick a saved profile, then run the check.
+          Results are written in plain language — what we checked, what happened, and what to do if something fails.
         </p>
       </header>
 
@@ -65,8 +65,9 @@
       <section id="summary" class="summary" hidden aria-live="polite">
         <p id="summaryStatus" class="summary-status"></p>
         <p id="summaryCounts" class="summary-counts"></p>
+        <p id="summaryHint" class="summary-hint" hidden></p>
         <a id="reportLink" class="report-link" href="#" target="_blank" rel="noopener" hidden>
-          Open full report
+          Open detailed technical report
         </a>
       </section>
 
@@ -78,20 +79,19 @@
           <thead>
             <tr>
               <th>Result</th>
-              <th>Test</th>
-              <th>Expected</th>
-              <th>Actual</th>
-              <th>Duration</th>
+              <th>What we checked</th>
+              <th>What happened</th>
+              <th>Time</th>
             </tr>
           </thead>
           <tbody id="rows">
             <tr class="empty">
-              <td colspan="5">Results will appear here after you run a check.</td>
+              <td colspan="4">Results will appear here after you run a check.</td>
             </tr>
           </tbody>
         </table>
       </section>
     </div>
-    <script src="/static/app.js?v=4"></script>
+    <script src="/static/app.js?v=6"></script>
   </body>
 </html>
