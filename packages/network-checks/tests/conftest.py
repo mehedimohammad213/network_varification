@@ -81,8 +81,6 @@ TEST_EXPECTED: dict[str, str] = {
     "missing_local_file_uses_the_example": "usingExampleTargets True; example path",
     "targets_file_override": "TARGETS_FILE path used; not example",
     "minimal_profile_does_not_invent_a_public_url": "No invented redirectUrl; defaults applied",
-    "dotenv_sets_profile_when_shell_is_empty": "Profile comes from .env",
-    "shell_env_wins_over_dotenv": "Shell NETWORK_PROFILE wins over .env",
 }
 
 _CASE_ID = re.compile(r"test_(NET_[A-Z]\d{2})")

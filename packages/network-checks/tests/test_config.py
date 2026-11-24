@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from network_checks.load_config import ConfigError, load_profile, load_runner_env, project_root
+from network_checks.load_config import ConfigError, load_profile, project_root
 
 PROFILES = ("ecommerce", "erp", "cms", "fintech")
 
@@ -113,40 +113,3 @@ cms:
     assert "redirectUrl" not in profile["http"]
     assert profile["dns"]["multiAHost"] == "api.cms.staging.example.com"
     assert profile["unreachableHost"] == "192.0.2.1"
-
-
-def test_dotenv_sets_profile_when_shell_is_empty(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case
-) -> None:
-    source = project_root() / "config" / "targets.example.yaml"
-    target = tmp_path / "targets.yaml"
-    target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-    env_file = tmp_path / ".env"
-    env_file.write_text(
-        f"NETWORK_PROFILE=fintech\nTARGETS_FILE={target}\n",
-        encoding="utf-8",
-    )
-    monkeypatch.delenv("NETWORK_PROFILE", raising=False)
-    monkeypatch.delenv("TARGETS_FILE", raising=False)
-    load_runner_env(env_file, force=True)
-    profile = load_profile()
-    case.actual = f"name={profile['name']}; targetsFile={profile['targetsFile']}"
-    assert profile["name"] == "fintech"
-    assert profile["targetsFile"] == str(target.resolve())
-
-
-def test_shell_env_wins_over_dotenv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case) -> None:
-    source = project_root() / "config" / "targets.example.yaml"
-    target = tmp_path / "targets.yaml"
-    target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-    env_file = tmp_path / ".env"
-    env_file.write_text(
-        f"NETWORK_PROFILE=fintech\nTARGETS_FILE={target}\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("NETWORK_PROFILE", "erp")
-    monkeypatch.setenv("TARGETS_FILE", str(target))
-    load_runner_env(env_file, force=True)
-    profile = load_profile()
-    case.actual = f"name={profile['name']}"
-    assert profile["name"] == "erp"

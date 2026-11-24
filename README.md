@@ -18,29 +18,18 @@ python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp config/targets.example.yaml config/targets.yaml
-cp .env.example .env
 ```
 
 If `python3 -m venv` stops because `ensurepip` is missing, install the distro `python3-venv` package, or run `python3 -m venv .venv --without-pip` and bootstrap pip with `get-pip.py` inside that environment.
 
-### Config vs `.env`
+### Config
 
 | File | Purpose | Committed? |
 |------|---------|------------|
 | `config/targets.yaml` | Hosts, `baseUrl`, ports, latency, overlays | No (gitignored) |
 | `config/targets.example.yaml` | Safe public-lab sample | Yes |
-| `.env` | `NETWORK_PROFILE` and optional `TARGETS_FILE` only | No (gitignored) |
-| `.env.example` | Same keys, no secrets | Yes |
 
-Do not put URLs in `.env`. Edit the YAML profile for those. Shell and CI exports still win over `.env`.
-
-```bash
-# .env
-NETWORK_PROFILE=cms
-# TARGETS_FILE=config/targets.yaml
-```
-
-If `targets.yaml` is missing, the loader uses the example and the report marks the run as DEV-LAB.
+Pick the product with a shell or CI export (`NETWORK_PROFILE=cms`). Optional `TARGETS_FILE` points at another YAML. Defaults are profile `cms` and `config/targets.yaml` (or the example if that file is missing). Edit the YAML for hosts and URLs — not env vars.
 
 ## Browser UI (for non-tech clients)
 
@@ -58,7 +47,7 @@ API cheat sheet: `GET /api/profiles`, `POST /api/runs`, `GET /api/runs/{id}`, `G
 
 ## Smoke and full (CLI)
 
-Run from the repository root (`.env` supplies the profile if you do not export it):
+Run from the repository root (defaults to `cms` unless you export `NETWORK_PROFILE`):
 
 ```bash
 pytest -m smoke --html=reports/smoke.html --self-contained-html

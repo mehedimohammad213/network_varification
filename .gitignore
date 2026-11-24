@@ -8,9 +8,6 @@ __pycache__/
 # Real product URLs and tokens. Commit targets.example.yaml only.
 config/targets.yaml
 
-# Runner selection only. Commit .env.example; URLs stay in YAML.
-.env
-
 # Generated evidence. The directory is created at run time.
 reports/*
 !reports/.gitkeep

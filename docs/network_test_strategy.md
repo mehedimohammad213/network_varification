@@ -42,7 +42,7 @@ Out of scope for v1:
 
 ## 4. Environments
 
-The same tests run everywhere. `NETWORK_PROFILE` and the targets file select the product. Hosts and URLs live in `config/targets.yaml` (gitignored). `.env` may set only `NETWORK_PROFILE` and optional `TARGETS_FILE`; shell and CI exports win over `.env`. The committed `config/targets.example.yaml` is a public lab (example.com and other lab hosts) so a new runner can prove the suite before any real URL is introduced.
+The same tests run everywhere. `NETWORK_PROFILE` and the targets file select the product. Hosts and URLs live in `config/targets.yaml` (gitignored). Set `NETWORK_PROFILE` and optional `TARGETS_FILE` in the shell or CI; defaults are `cms` and `config/targets.yaml`. The committed `config/targets.example.yaml` is a public lab (example.com and other lab hosts) so a new runner can prove the suite before any real URL is introduced.
 
 | Environment | Runner | Targets | Suite |
 |-------------|--------|---------|-------|

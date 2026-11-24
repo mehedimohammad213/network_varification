@@ -4,8 +4,8 @@ NETWORK_PROFILE selects ecommerce, erp, cms, or fintech.
 TARGETS_FILE overrides the YAML path. A gitignored config/targets.yaml wins
 over the committed example so real URLs never have to be committed.
 
-.env may set NETWORK_PROFILE and TARGETS_FILE only. Hosts and baseUrl stay
-in YAML. Already-exported shell or CI variables win over .env.
+Hosts and baseUrl stay in YAML. Set NETWORK_PROFILE / TARGETS_FILE in the
+shell or CI when you need something other than the defaults.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from dotenv import load_dotenv
 
 CODE_DEFAULTS: dict[str, Any] = {
     "readOnly": True,
@@ -61,7 +60,6 @@ CODE_DEFAULTS: dict[str, Any] = {
 }
 
 RESERVED_KEYS = {"defaults"}
-_DOTENV_LOADED = False
 
 
 class ConfigError(Exception):
@@ -78,21 +76,7 @@ def project_root() -> Path:
     return here.parents[4]
 
 
-def load_runner_env(env_file: str | Path | None = None, *, force: bool = False) -> Path | None:
-    """Load .env for NETWORK_PROFILE / TARGETS_FILE. Does not override the shell."""
-    global _DOTENV_LOADED
-    if _DOTENV_LOADED and not force and env_file is None:
-        return project_root() / ".env"
-    path = Path(env_file) if env_file is not None else project_root() / ".env"
-    if path.is_file():
-        load_dotenv(path, override=False)
-    if env_file is None:
-        _DOTENV_LOADED = True
-    return path if path.is_file() else None
-
-
 def resolve_targets_path(explicit: str | None = None) -> Path:
-    load_runner_env()
     root = project_root()
     candidate = explicit if explicit is not None else os.environ.get("TARGETS_FILE")
     if candidate:
@@ -109,7 +93,6 @@ def resolve_targets_path(explicit: str | None = None) -> Path:
 
 def list_profiles(targets_file: str | None = None) -> list[dict[str, Any]]:
     """Return profile names and short descriptions for the UI."""
-    load_runner_env()
     path = resolve_targets_path(targets_file)
     if not path.is_file():
         raise ConfigError(f"Targets file not found: {path}.")
@@ -129,7 +112,6 @@ def list_profiles(targets_file: str | None = None) -> list[dict[str, Any]]:
 
 def load_profile(profile: str | None = None, targets_file: str | None = None) -> dict[str, Any]:
     """Return one profile with defaults filled in and the name attached."""
-    load_runner_env()
     path = resolve_targets_path(targets_file)
     if not path.is_file():
         raise ConfigError(
